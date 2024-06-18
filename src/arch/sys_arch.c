@@ -17,6 +17,7 @@
 #include <stdint.h>
 
 #include "arch/cc.h"
+#include "clock.h"
 
 // Standard system calls (here to shut up the linker)
 void _close() { }
@@ -43,5 +44,5 @@ void sys_arch_unprotect(sys_prot_t pval) {
 }
 
 uint32_t sys_now(void) {
-    return SysTick->CNT/18000;
+    return GetTick();
 }

@@ -1,8 +1,21 @@
 #include "CH32Ethernet.h"
 
-int CH32Ethernet::begin(uint32_t timeout, uint32_t responseTimeout) {
-    // TODO: DHCP
-    return 0;
+int CH32Ethernet::begin(uint32_t timeout, uint32_t responseTimeout, bool blocking) {
+    // static DhcpClass s_dhcp;
+    // _dhcp = &s_dhcp;
+    ch32_eth_init();
+    if (blocking) {
+        // block as long as no IP has been assigned or the link is down
+        uint32_t start = millis();
+        while (!(linkStatus() == LinkON && localIP())) {    
+            maintain();
+            if (millis() - start > timeout) {
+                return 0;
+            }
+        }
+        return 1;
+    }
+    return 2;
 }
 
 void CH32Ethernet::begin(IPAddress local_ip, IPAddress subnet, IPAddress gateway, IPAddress dns_server) {
@@ -24,15 +37,16 @@ void CH32Ethernet::begin(IPAddress local_ip, IPAddress subnet, IPAddress gateway
         dns = dns_server;
     }
     ch32_eth_init(nullptr, (uint8_t*)&ip, (uint8_t*)&gw, (uint8_t*)&dns);
-
 }
 
-void CH32Ethernet::loop() {
+int CH32Ethernet::maintain() {
     uint32_t delta = millis() - _lastLoop;
     if (delta > 1) {
         _lastLoop = millis();
         ch32_eth_loop(millis());
     }
+
+    return 0;
 }
 
 void CH32Ethernet::setLedPins(uint32_t linkPin, uint32_t actPin, bool activeLow) {

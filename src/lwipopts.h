@@ -23,6 +23,8 @@
 #define LWIP_NETCONN 0
 #define LWIP_NOASSERT 1
 
+#define LWIP_DHCP 1
+
 // Memory
 #define MEM_SIZE (16 * 1024)
 #define MEM_ALIGNMENT 4

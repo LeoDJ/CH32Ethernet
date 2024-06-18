@@ -9,6 +9,8 @@ uint32_t ch32_eth_init(uint8_t *mac = nullptr, const uint8_t *ip = nullptr, cons
 
 void ch32_eth_loop(uint32_t deltaMs = 0);
 
+netif *get_netif();
+
 // LwIP driver
 err_t ch32_netif_init(struct netif *netif);
 

@@ -1,11 +1,12 @@
 #include "eth.h"
-#include <string.h>
+#include <lwip/dhcp.h>
 #include <lwip/etharp.h>
 #include <lwip/init.h>
+#include <lwip/timeouts.h>
 #include <netif/ethernet.h>
+#include <string.h>
 
-const uint32_t LED_PERSISTENCE = 50;    // ms, time to leave LED on/off
-
+const uint32_t LED_PERSISTENCE = 50; // ms, time to leave LED on/off
 
 extern ETH_DMADESCTypeDef* pDMARxSet;
 extern ETH_DMADESCTypeDef* pDMATxSet;
@@ -23,6 +24,10 @@ eth_led_cb_t _led_cb = NULL;
 
 void ch32_eth_setLedCallback(eth_led_cb_t cb) {
     _led_cb = cb;
+}
+
+netif *get_netif() {
+    return &gnetif;
 }
 
 uint32_t eth_check_packet() {
@@ -171,6 +176,13 @@ uint32_t ch32_eth_init(uint8_t* mac, const uint8_t* ip, const uint8_t* gw, const
 
     netifCfg(&ipAddr, &gwAddr, &netmaskAddr);
 
+    if (ip != nullptr) {
+        dhcp_inform(&gnetif);
+    }
+    else {
+        dhcp_start(&gnetif);
+    }
+
     return ETH_SUCCESS;
 }
 
@@ -187,7 +199,9 @@ void actLedHandling(uint32_t ms) {
         if (newLedState) {
             _actLedDoBlink = false; // clear waiting LED turn-on request
         }
-        _led_cb(ETH_LED_ACT, newLedState);
+        if (newLedState != _lastActLedState) {
+            _led_cb(ETH_LED_ACT, newLedState);
+        }
         _lastActLedState = newLedState;
     }
 }
@@ -211,9 +225,9 @@ void ch32_eth_loop(uint32_t ms) {
     actLedHandling(ms);
 
     if (ms != _lastTimeIsr) {
-        _lastTimeIsr = ms;
         WCHNET_TimeIsr(ms - _lastTimeIsr);
         WCHNET_HandlePhyNegotiation();
+        _lastTimeIsr = ms;
     }
 
     if (_linkChanged) {
@@ -228,9 +242,11 @@ void ch32_eth_loop(uint32_t ms) {
             printf("[ETH] Link Down.\n");
             netif_set_link_down(&gnetif);
         }
-        
+
         if (_led_cb) {
             _led_cb(ETH_LED_LINK, linkState);
         }
     }
+
+    sys_check_timeouts();
 }

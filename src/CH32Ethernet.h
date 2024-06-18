@@ -3,22 +3,46 @@
 #include <Arduino.h>
 #include <IPAddress.h>
 #include "eth.h"
+// #include "Dhcp.h"
+
+#include <lwip/ip4_addr.h>
+
+enum EthernetLinkStatus { 
+    Unknown, 
+    LinkON,
+    LinkOFF 
+};
 
 class CH32Ethernet {
   public:
-    // Initialise the Ethernet with the internal provided MAC address and gain the rest of the
-    // configuration through DHCP.
-    // Returns 0 if the DHCP configuration failed, and 1 if it succeeded
-    int begin(uint32_t timeout = 60000, uint32_t responseTimeout = 4000);
+    // DHCP
+    // Returns 0 if the DHCP configuration failed, and 1 if it succeeded, and 2 if running non-blockingly
+    int begin(uint32_t timeout = 60000, uint32_t responseTimeout = 4000, bool blocking = true);
 
+    // Static IP
     void begin(IPAddress local_ip, IPAddress subnet = nullptr, IPAddress gateway = nullptr, IPAddress dns_server = nullptr);
 
+    void setLedPins(uint32_t linkPin, uint32_t actPin, bool activeLow = false);
+
     // Has to be called often in main loop to ensure correct ethernet processing
-    void loop();
+    int maintain();
+
+    EthernetLinkStatus linkStatus() {
+        return netif_is_link_up(get_netif()) ? LinkON : LinkOFF;
+    }
+    IPAddress localIP() {
+        return IPAddress(ip4_addr_get_u32(&(get_netif()->ip_addr)));
+    }
+    IPAddress subnetMask() {
+        return IPAddress(ip4_addr_get_u32(&(get_netif()->netmask)));
+    }
+    IPAddress gatewayIP() {
+        return IPAddress(ip4_addr_get_u32(&(get_netif()->gw)));
+    }
+    IPAddress dnsServerIP(); // TODO
+
 
     static void ledCallback(uint8_t ledId, uint8_t state);
-
-    void setLedPins(uint32_t linkPin, uint32_t actPin, bool activeLow = false);
 
     // Singleton pattern, for passing function pointers to C callbacks
     CH32Ethernet() {};
@@ -35,6 +59,7 @@ class CH32Ethernet {
 
   protected:
     static inline CH32Ethernet *instance = nullptr;
+    // DhcpClass *_dhcp;
     uint32_t _lastLoop = 0;
     uint32_t _pinLedLink, _pinLedAct;
     bool _ledsActiveLow;
