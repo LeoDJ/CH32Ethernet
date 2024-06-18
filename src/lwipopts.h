@@ -30,17 +30,17 @@
 // NETIF
 #define LWIP_NETIF_HOSTNAME 1
 
-// Checksums, all done in hardware :)
-#define CHECKSUM_GEN_IP      0
-#define CHECKSUM_GEN_UDP     0
-#define CHECKSUM_GEN_TCP     0
-#define CHECKSUM_GEN_ICMP    0
-#define CHECKSUM_GEN_ICMP6   0
-#define CHECKSUM_CHECK_IP    0
-#define CHECKSUM_CHECK_UDP   0
-#define CHECKSUM_CHECK_TCP   0
-#define CHECKSUM_CHECK_ICMP  0
-#define CHECKSUM_CHECK_ICMP6 0
+// Checksums need to be calculated manually for V208
+#define CHECKSUM_GEN_IP      1
+#define CHECKSUM_GEN_UDP     1
+#define CHECKSUM_GEN_TCP     1
+#define CHECKSUM_GEN_ICMP    1
+#define CHECKSUM_GEN_ICMP6   1
+#define CHECKSUM_CHECK_IP    1
+#define CHECKSUM_CHECK_UDP   1
+#define CHECKSUM_CHECK_TCP   1
+#define CHECKSUM_CHECK_ICMP  1
+#define CHECKSUM_CHECK_ICMP6 1
 
 // HTTP server returns garbage without this
 #define HTTP_IS_DATA_VOLATILE(hs) TCP_WRITE_FLAG_COPY

@@ -13,19 +13,31 @@ struct netif gnetif;
 volatile bool _hasFrame = 0;
 struct pbuf* _pbuf = NULL;
 
+#define ETH_DMATxDesc_CIC_TCPUDPICMP_Full     ((uint32_t)0x00C00000)  /* TCP/UDP/ICMP Checksum Insertion fully calculated */
+
+
+uint32_t eth_check_packet() {
+    if (pDMARxSet->Status & ETH_DMARxDesc_OWN) {
+        return ETH_ERROR;
+    }
+    return ETH_SUCCESS;
+}
+
 // copied from eth_driver.c/RecDataPolling
 uint32_t eth_get_packet(uint8_t** buffer, uint16_t* len) {
-    if (pDMARxSet->Status & ETH_DMARxDesc_OWN) {
+    if (eth_check_packet() == ETH_ERROR) {
         return ETH_ERROR;
     }
 
     // while (!(pDMARxSet->Status & ETH_DMARxDesc_OWN)) {
     if (!(pDMARxSet->Status & ETH_DMARxDesc_ES) && (pDMARxSet->Status & ETH_DMARxDesc_LS) &&
         (pDMARxSet->Status & ETH_DMARxDesc_FS)) {
-        /* Get the Frame Length of the received packet: substruct 4 bytes of the CRC */
-        *len = ((pDMARxSet->Status & ETH_DMARxDesc_FL) >> 16) - 4;
-        /* Get the addrees of the actual buffer */
-        *buffer = (uint8_t*)pDMARxSet->Buffer1Addr;
+        if (buffer && len) {
+            /* Get the Frame Length of the received packet: substruct 4 bytes of the CRC */
+            *len = ((pDMARxSet->Status & ETH_DMARxDesc_FL) >> 16) - 4;
+            /* Get the addrees of the actual buffer */
+            *buffer = (uint8_t*)pDMARxSet->Buffer1Addr;
+        }
     }
     pDMARxSet->Status = ETH_DMARxDesc_OWN;
     pDMARxSet = (ETH_DMADESCTypeDef*)pDMARxSet->Buffer2NextDescAddr;
@@ -57,19 +69,8 @@ uint32_t eth_send_packet(const uint8_t* buffer, uint16_t len) {
 
 extern "C" {
 INTERRUPT(ETH_IRQHandler) {
+    // printf("(%8d) [ETH] ISR\n", millis());
     WCHNET_ETHIsr();
-
-    if (!_hasFrame) {
-        uint8_t* buf;
-        uint16_t len;
-        if (eth_get_packet(&buf, &len) == ETH_ERROR) {
-            return;
-        }
-
-        _pbuf = pbuf_alloc(PBUF_RAW, len, PBUF_POOL);
-        pbuf_take(_pbuf, buf, len);
-        _hasFrame = 1;
-    }
 }
 }
 
@@ -160,13 +161,20 @@ uint32_t ch32_eth_init(uint8_t* mac, const uint8_t* ip, const uint8_t* gw, const
 void ch32_eth_loop() {
     // TODO: link state foo
 
-    if (_hasFrame) {
-        LINK_STATS_INC(link.recv);
-        if (gnetif.input(_pbuf, &gnetif) != ERR_OK) {
-            pbuf_free(_pbuf);
+    if (eth_check_packet()) {
+        uint8_t* buf;
+        uint16_t len;
+        if (eth_get_packet(&buf, &len) == ETH_SUCCESS) {
+            _pbuf = pbuf_alloc(PBUF_RAW, len, PBUF_POOL);
+            pbuf_take(_pbuf, buf, len);
+
+            LINK_STATS_INC(link.recv);
+            if (gnetif.input(_pbuf, &gnetif) != ERR_OK) {
+                pbuf_free(_pbuf);
+            }
         }
-        _hasFrame = 0;
     }
+
 
     // TODO: WCHNET_TimeIsr()?
     // WCHNET_HandlePhyNegotiation();
