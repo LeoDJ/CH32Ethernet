@@ -4,6 +4,9 @@
 #include <lwip/init.h>
 #include <netif/ethernet.h>
 
+const uint32_t LED_PERSISTENCE = 50;    // ms, time to leave LED on/off
+
+
 extern ETH_DMADESCTypeDef* pDMARxSet;
 extern ETH_DMADESCTypeDef* pDMATxSet;
 
@@ -12,8 +15,15 @@ struct netif gnetif;
 volatile bool _hasFrame = 0, _linkChanged = 0;
 struct pbuf* _pbuf = NULL;
 
-#define ETH_DMATxDesc_CIC_TCPUDPICMP_Full     ((uint32_t)0x00C00000)  /* TCP/UDP/ICMP Checksum Insertion fully calculated */
+uint32_t _lastTimeIsr = 0;
+uint32_t _lastLedChange = 0;
+bool _actLedDoBlink = 0, _lastActLedState = 0;
 
+eth_led_cb_t _led_cb = NULL;
+
+void ch32_eth_setLedCallback(eth_led_cb_t cb) {
+    _led_cb = cb;
+}
 
 uint32_t eth_check_packet() {
     if (pDMARxSet->Status & ETH_DMARxDesc_OWN) {
@@ -82,6 +92,7 @@ INTERRUPT(ETH_IRQHandler) {
 static err_t ch32_netif_output(struct netif* netif, struct pbuf* p) {
     (void)netif;
     LINK_STATS_INC(link.xmit);
+    _actLedDoBlink = true;
 
     if (eth_send_packet((const uint8_t*)p->payload, p->tot_len) == ETH_ERROR) {
         return ERR_IF;
@@ -163,7 +174,25 @@ uint32_t ch32_eth_init(uint8_t* mac, const uint8_t* ip, const uint8_t* gw, const
     return ETH_SUCCESS;
 }
 
-void ch32_eth_loop(uint32_t deltaMs) {
+// set _actLedDoBlink to true to trigger a LED blink
+// correctly handles multiple blink requests in quick succession
+void actLedHandling(uint32_t ms) {
+    if (!_led_cb)
+        return;
+
+    if (ms - _lastLedChange >= LED_PERSISTENCE) {
+        _lastLedChange = ms;
+
+        bool newLedState = !_lastActLedState && _actLedDoBlink; // turn on if packet waiting and was off previously
+        if (newLedState) {
+            _actLedDoBlink = false; // clear waiting LED turn-on request
+        }
+        _led_cb(ETH_LED_ACT, newLedState);
+        _lastActLedState = newLedState;
+    }
+}
+
+void ch32_eth_loop(uint32_t ms) {
     if (eth_check_packet()) {
         uint8_t* buf;
         uint16_t len;
@@ -172,29 +201,36 @@ void ch32_eth_loop(uint32_t deltaMs) {
             pbuf_take(_pbuf, buf, len);
 
             LINK_STATS_INC(link.recv);
+            _actLedDoBlink = true;
             if (gnetif.input(_pbuf, &gnetif) != ERR_OK) {
                 pbuf_free(_pbuf);
             }
         }
     }
 
-    if (deltaMs != 0) {
-        WCHNET_TimeIsr(deltaMs);
+    actLedHandling(ms);
+
+    if (ms != _lastTimeIsr) {
+        _lastTimeIsr = ms;
+        WCHNET_TimeIsr(ms - _lastTimeIsr);
         WCHNET_HandlePhyNegotiation();
+    }
 
-        if (_linkChanged) {
-            _linkChanged = false;
-            uint16_t phyBMSR = ReadPHYReg(PHY_BMSR);
-            if (phyBMSR & PHY_Linked_Status /*&& phyBMSR & PHY_AutoNego_Complete*/) {
-                printf("[ETH] Link Up.\n");
-                netif_set_link_up(&gnetif);
-            }
-            else {
-                printf("[ETH] Link Down.\n");
-                netif_set_link_down(&gnetif);
-            }
-
-            // TODO: LED
+    if (_linkChanged) {
+        _linkChanged = false;
+        uint16_t phyBMSR = ReadPHYReg(PHY_BMSR);
+        bool linkState = phyBMSR & PHY_Linked_Status /*&& phyBMSR & PHY_AutoNego_Complete*/;
+        if (linkState) {
+            printf("[ETH] Link Up.\n");
+            netif_set_link_up(&gnetif);
         }
-    } 
+        else {
+            printf("[ETH] Link Down.\n");
+            netif_set_link_down(&gnetif);
+        }
+        
+        if (_led_cb) {
+            _led_cb(ETH_LED_LINK, linkState);
+        }
+    }
 }

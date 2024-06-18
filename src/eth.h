@@ -11,3 +11,11 @@ void ch32_eth_loop(uint32_t deltaMs = 0);
 
 // LwIP driver
 err_t ch32_netif_init(struct netif *netif);
+
+
+#define ETH_LED_LINK    0
+#define ETH_LED_ACT     1
+
+typedef void (*eth_led_cb_t)(uint8_t ledId, uint8_t state);
+
+void ch32_eth_setLedCallback(eth_led_cb_t cb);

@@ -31,7 +31,28 @@ void CH32Ethernet::loop() {
     uint32_t delta = millis() - _lastLoop;
     if (delta > 1) {
         _lastLoop = millis();
-        ch32_eth_loop(delta);
+        ch32_eth_loop(millis());
+    }
+}
+
+void CH32Ethernet::setLedPins(uint32_t linkPin, uint32_t actPin, bool activeLow) {
+    _pinLedLink = linkPin;
+    _pinLedAct = actPin;
+    _ledsActiveLow = activeLow;
+
+    pinMode(linkPin, OUTPUT);
+    digitalWrite(linkPin, activeLow);
+    pinMode(actPin, OUTPUT);
+    digitalWrite(actPin, activeLow);
+
+    ch32_eth_setLedCallback(ledCallback);
+};
+
+void CH32Ethernet::ledCallback(uint8_t ledId, uint8_t state) {
+    bool pinState = state ^ getInstance()->_ledsActiveLow;
+    switch (ledId) {
+        case ETH_LED_LINK:  digitalWrite(getInstance()->_pinLedLink, pinState);    break;
+        case ETH_LED_ACT:   digitalWrite(getInstance()->_pinLedAct, pinState);     break;
     }
 }
 
