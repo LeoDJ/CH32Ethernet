@@ -1,0 +1,26 @@
+{
+    "name": "CH32Ethernet",
+    "keywords": "Ethernet",
+    "description": "Arduino library to support Ethernet for CH32 boards.",
+    "repository":
+    {
+      "type": "git",
+      "url": "https://github.com/LeoDJ/CH32Ethernet"
+    },
+    "version": "1.0.0",
+    "frameworks": "arduino",
+    "platforms": "ch32v",
+    "build": {
+      "libArchive": false,
+      "srcFilter": [
+        "+<*>",
+        "-<lwip/*>",
+        "+<lwip/src>",
+        "-<lwip/src/apps>"
+      ],
+      "flags": [
+        "-I src/lwip/src/include"
+      ]
+    }
+  }
+  
