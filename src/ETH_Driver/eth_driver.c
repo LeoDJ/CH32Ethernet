@@ -213,7 +213,8 @@ void WCHNET_LinkProcess( void )
                     phy_bmcr = ReadPHYReg(PHY_BMCR);
                     phy_bmcr |= 1<<9;
                     WritePHYReg(PHY_BMCR, phy_bmcr);
-                    Delay_Us(10);
+                    // Delay_Us(10);    // TODO: replace
+                    for (int i = 0; i < 10000; i++) {}
                     WritePHYReg(PHY_MDIX, phyPN);
                 }
                 else{
@@ -654,7 +655,7 @@ void WCHNET_ETHIsr( void )
  */
 void ETH_Init( uint8_t *macAddr )
 {
-    Delay_Ms(100);
+    // Delay_Ms(100);   // TODO: document this change?
     ETH_Configuration( macAddr );
     ETH_DMATxDescChainInit(DMATxDscrTab, MACTxBuf, ETH_TXBUFNB);
     ETH_DMARxDescChainInit(DMARxDscrTab, MACRxBuf, ETH_RXBUFNB);
