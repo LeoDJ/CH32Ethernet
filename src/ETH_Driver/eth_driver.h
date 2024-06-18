@@ -100,6 +100,9 @@ void WCHNET_TimeIsr( uint16_t timperiod );
 void ETH_Configuration( uint8_t *macAddr );
 uint32_t MACRAW_Tx(uint8_t *buff, uint16_t len);
 
+void WCHNET_HandlePhyNegotiation(void);
+uint16_t ReadPHYReg(uint8_t reg_add);
+
 #ifdef __cplusplus
 }
 #endif

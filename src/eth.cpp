@@ -6,11 +6,10 @@
 
 extern ETH_DMADESCTypeDef* pDMARxSet;
 extern ETH_DMADESCTypeDef* pDMATxSet;
-extern void WCHNET_HandlePhyNegotiation(void);
 
 struct netif gnetif;
 
-volatile bool _hasFrame = 0;
+volatile bool _hasFrame = 0, _linkChanged = 0;
 struct pbuf* _pbuf = NULL;
 
 #define ETH_DMATxDesc_CIC_TCPUDPICMP_Full     ((uint32_t)0x00C00000)  /* TCP/UDP/ICMP Checksum Insertion fully calculated */
@@ -70,6 +69,12 @@ uint32_t eth_send_packet(const uint8_t* buffer, uint16_t len) {
 extern "C" {
 INTERRUPT(ETH_IRQHandler) {
     // printf("(%8d) [ETH] ISR\n", millis());
+
+    uint8_t eth_irq_flag = R8_ETH_EIR;
+    if (eth_irq_flag & RB_ETH_EIR_LINKIF) {     // link changed
+        _linkChanged = true;
+    }
+
     WCHNET_ETHIsr();
 }
 }
@@ -149,7 +154,7 @@ uint32_t ch32_eth_init(uint8_t* mac, const uint8_t* ip, const uint8_t* gw, const
         IP_ADDR4_U8ARR(&netmaskAddr, netmask);
     }
 
-    ETH_Init(mac); // TODO: check if built-in delay causes problems
+    ETH_Init(mac);
 
     lwip_init();
 
@@ -158,9 +163,7 @@ uint32_t ch32_eth_init(uint8_t* mac, const uint8_t* ip, const uint8_t* gw, const
     return ETH_SUCCESS;
 }
 
-void ch32_eth_loop() {
-    // TODO: link state foo
-
+void ch32_eth_loop(uint32_t deltaMs) {
     if (eth_check_packet()) {
         uint8_t* buf;
         uint16_t len;
@@ -175,7 +178,23 @@ void ch32_eth_loop() {
         }
     }
 
+    if (deltaMs != 0) {
+        WCHNET_TimeIsr(deltaMs);
+        WCHNET_HandlePhyNegotiation();
 
-    // TODO: WCHNET_TimeIsr()?
-    // WCHNET_HandlePhyNegotiation();
+        if (_linkChanged) {
+            _linkChanged = false;
+            uint16_t phyBMSR = ReadPHYReg(PHY_BMSR);
+            if (phyBMSR & PHY_Linked_Status /*&& phyBMSR & PHY_AutoNego_Complete*/) {
+                printf("[ETH] Link Up.\n");
+                netif_set_link_up(&gnetif);
+            }
+            else {
+                printf("[ETH] Link Down.\n");
+                netif_set_link_down(&gnetif);
+            }
+
+            // TODO: LED
+        }
+    } 
 }

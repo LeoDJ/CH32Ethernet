@@ -28,9 +28,10 @@ void CH32Ethernet::begin(IPAddress local_ip, IPAddress subnet, IPAddress gateway
 }
 
 void CH32Ethernet::loop() {
-    if (millis() - _lastLoop > 1) {
+    uint32_t delta = millis() - _lastLoop;
+    if (delta > 1) {
         _lastLoop = millis();
-        ch32_eth_loop();
+        ch32_eth_loop(delta);
     }
 }
 
