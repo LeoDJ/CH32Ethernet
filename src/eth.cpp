@@ -71,8 +71,10 @@ uint32_t eth_send_packet(const uint8_t* buffer, uint16_t len) {
     /* Check if the descriptor is owned by the ETHERNET DMA (when set) or CPU (when reset) */
     if (DMATxDescToSet->Status & ETH_DMATxDesc_OWN) {
         /* Return ERROR: OWN bit set */
-        printf("[ETH] ERROR: probably dropping TX packet!\n");
-        return ETH_ERROR;
+        printf("[ETH] ERROR: probably about to drop TX packet! Busy looping until previous TX done ");
+        while (DMATxDescToSet->Status & ETH_DMATxDesc_OWN) { printf("."); }
+        printf(" done.\n");
+        // return ETH_ERROR;
     }
     DMATxDescToSet->Status |= ETH_DMATxDesc_OWN;
     memcpy((void*)DMATxDescToSet->Buffer1Addr, buffer, len);

@@ -121,9 +121,13 @@ size_t EthernetClient::write(const uint8_t* buf, size_t size) {
 }
 
 int EthernetClient::available() {
+    // call maintain here, because some Arduino libraries just wait for available to turn true
+    Ethernet.maintain();
+    
     if (!_pcb || !_rxBuffer) {
         return 0;
     }
+
     return _rxBuffer->tot_len;
 }
 
