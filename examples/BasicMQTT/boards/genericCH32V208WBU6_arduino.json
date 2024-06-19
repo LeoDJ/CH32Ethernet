@@ -1,7 +1,14 @@
 {
   "build": {
+    "arduino": {
+      "openwch": {
+        "variant": "CH32V20x/CH32V208WB",
+        "variant_h": "variant_CH32V208WB.h"
+      }
+    },
+    "core": "openwch",
     "extra_flags": "-DCH32V208WB -DCH32V20X -DCH32V208 -DCH32V20x_D8W",
-    "f_cpu": "144000000L",
+    "f_cpu": "120000000L",
     "hwids": [
       [
         "0x1A86",
@@ -25,7 +32,8 @@
     "freertos",
     "harmony-liteos",
     "rt-thread",
-    "tencent-os"
+    "tencent-os",
+    "arduino"
   ],
   "name": "Generic CH32V208WBU6",
   "upload": {
