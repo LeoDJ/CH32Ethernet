@@ -30,6 +30,7 @@ netif *get_netif() {
     return &gnetif;
 }
 
+// check if descriptor is not owned by ETH DMA
 uint32_t eth_check_packet() {
     if (pDMARxSet->Status & ETH_DMARxDesc_OWN) {
         return ETH_ERROR;
@@ -53,11 +54,15 @@ uint32_t eth_get_packet(uint8_t** buffer, uint16_t* len) {
             *buffer = (uint8_t*)pDMARxSet->Buffer1Addr;
         }
     }
-    pDMARxSet->Status = ETH_DMARxDesc_OWN;
-    pDMARxSet = (ETH_DMADESCTypeDef*)pDMARxSet->Buffer2NextDescAddr;
 
     return ETH_SUCCESS;
     // }
+}
+
+// call when done with handling of packet
+void eth_get_packet_done() {
+    pDMARxSet->Status = ETH_DMARxDesc_OWN;
+    pDMARxSet = (ETH_DMADESCTypeDef*)pDMARxSet->Buffer2NextDescAddr;
 }
 
 // copied from eth_driver.c/MACRAW_Tx, but actually using the TX buffer, because of 4 byte alignment
@@ -66,6 +71,7 @@ uint32_t eth_send_packet(const uint8_t* buffer, uint16_t len) {
     /* Check if the descriptor is owned by the ETHERNET DMA (when set) or CPU (when reset) */
     if (DMATxDescToSet->Status & ETH_DMATxDesc_OWN) {
         /* Return ERROR: OWN bit set */
+        printf("[ETH] ERROR: probably dropping TX packet!\n");
         return ETH_ERROR;
     }
     DMATxDescToSet->Status |= ETH_DMATxDesc_OWN;
@@ -212,12 +218,20 @@ void ch32_eth_loop(uint32_t ms) {
         uint16_t len;
         if (eth_get_packet(&buf, &len) == ETH_SUCCESS) {
             _pbuf = pbuf_alloc(PBUF_RAW, len, PBUF_POOL);
-            pbuf_take(_pbuf, buf, len);
+            if (_pbuf != NULL) {
+                pbuf_take(_pbuf, buf, len);
+                eth_get_packet_done();
 
-            LINK_STATS_INC(link.recv);
-            _actLedDoBlink = true;
-            if (gnetif.input(_pbuf, &gnetif) != ERR_OK) {
-                pbuf_free(_pbuf);
+                LINK_STATS_INC(link.recv);
+                _actLedDoBlink = true;
+                if (gnetif.input(_pbuf, &gnetif) != ERR_OK) {
+                    pbuf_free(_pbuf);
+                    printf("[ETH] netif input error\n");
+                }
+            }
+            else {
+                // if this error occurs, try decreasing FREE_BUFFER_THRESHHOLD in EthernetClient
+                printf("[ETH] ERROR: Buffer overrun!\n");
             }
         }
     }

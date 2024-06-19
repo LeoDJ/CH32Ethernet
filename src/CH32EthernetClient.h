@@ -68,6 +68,7 @@ class EthernetClient : public Client {
     struct pbuf* _rxBuffer = nullptr;
     uint8_t _state = 0;
     uint16_t _connectionTimeout = 10000;
+    uint16_t _remainingTcpDataLen = 0;
 
     static err_t tcpReceive(void* arg, struct tcp_pcb* tpcb, struct pbuf* p, err_t err);
     static void tcpError(void* arg, err_t err);

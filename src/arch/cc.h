@@ -18,6 +18,15 @@
 #define LWIP_PLATFORM_DIAG(x) printf x;
 #define LWIP_RAND() ((uint32_t)rand())
 
+// somehow, the printf size modifiers are borked, workaround:
+#define U16_F PRIuPTR
+#define S16_F PRIdPTR
+#define X16_F PRIxPTR
+#define U32_F PRIuPTR
+#define S32_F PRIdPTR
+#define X32_F PRIxPTR
+#define SZT_F PRIuPTR
+
 typedef uint32_t sys_prot_t;
 
 #endif

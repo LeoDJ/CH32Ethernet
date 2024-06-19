@@ -3,6 +3,8 @@
 #include "Dns.h"
 #include <lwip/tcpip.h>
 
+const uint16_t FREE_BUFFER_THRESHHOLD = (PBUF_POOL_SIZE - 6) * PBUF_POOL_BUFSIZE;
+
 err_t EthernetClient::tcpReceive(void* arg, struct tcp_pcb* tpcb, struct pbuf* p, err_t err) {
     EthernetClient* client = reinterpret_cast<EthernetClient*>(arg);
     if (err == ERR_OK && p != nullptr) {
@@ -12,7 +14,15 @@ err_t EthernetClient::tcpReceive(void* arg, struct tcp_pcb* tpcb, struct pbuf* p
         else {
             pbuf_cat(client->_rxBuffer, p);
         }
-        tcp_recved(tpcb, p->tot_len);   // acknowledge data reception
+        
+        if (client->_rxBuffer->tot_len < FREE_BUFFER_THRESHHOLD) {
+            tcp_recved(tpcb, p->tot_len);   // acknowledge data reception, only when enough buffer available
+        }
+        else {
+            client->_remainingTcpDataLen = p->tot_len;  // handle externally, otherwise buffer overflows
+        }
+
+        
     }
     else if (err == ERR_OK && p == nullptr) {
         client->_state = 0;
@@ -126,13 +136,24 @@ int EthernetClient::read(uint8_t* buf, size_t size) {
     if (!_pcb || !_rxBuffer) {
         return 0;
     }
-    size_t len = pbuf_copy_partial(_rxBuffer, buf, size, 0);
-    pbuf_remove_header(_rxBuffer, len);
-    if (_rxBuffer->len == 0) {
+    if (pbuf_get_contiguous(_rxBuffer, buf, size, size, 0) == NULL) {
+        printf("[ETH_c] Error: couldn't get pbuf\n");
+    }
+    _rxBuffer = pbuf_free_header(_rxBuffer, size);
+
+    // only acknowledge TCP reception, when data was _actually_ handled, if the buffer is close to full
+    // (otherwise we overflow in ch32_eth_loop, because there's no signal traversing back through lwip to netif.input, when buffer full, apparently)
+    if (_remainingTcpDataLen != 0 && _rxBuffer->tot_len < FREE_BUFFER_THRESHHOLD) {
+        tcp_recved(_pcb, _remainingTcpDataLen);
+        _remainingTcpDataLen = 0;
+    }
+
+    if (_rxBuffer->tot_len == 0) {
         pbuf_free(_rxBuffer);
         _rxBuffer = nullptr;
     }
-    return len;
+
+    return size;
 }
 
 int EthernetClient::peek() {
