@@ -16,7 +16,8 @@
         "+<*>",
         "-<lwip/*>",
         "+<lwip/src>",
-        "-<lwip/src/apps>"
+        "-<lwip/src/apps/http/makefsdata>",
+        "-<lwip/src/apps/http/fsdata.c>"
       ],
       "flags": [
         "-I src/lwip/src/include"
