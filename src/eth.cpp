@@ -174,7 +174,7 @@ uint32_t ch32_eth_init(uint8_t* mac, const uint8_t* ip, const uint8_t* gw, const
 
     lwip_init();
 
-    netifCfg(&ipAddr, &gwAddr, &netmaskAddr);
+    netifCfg(&ipAddr, &netmaskAddr, &gwAddr);
 
     if (ip != nullptr) {
         dhcp_inform(&gnetif);
@@ -249,4 +249,8 @@ void ch32_eth_loop(uint32_t ms) {
     }
 
     sys_check_timeouts();
+}
+
+uint8_t dhcp_get_state() {
+    return ((struct dhcp *)netif_get_client_data(&gnetif, LWIP_NETIF_CLIENT_DATA_INDEX_DHCP))->state;
 }

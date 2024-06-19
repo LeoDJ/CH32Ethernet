@@ -14,6 +14,8 @@ netif *get_netif();
 // LwIP driver
 err_t ch32_netif_init(struct netif *netif);
 
+uint8_t dhcp_get_state();
+
 
 #define ETH_LED_LINK    0
 #define ETH_LED_ACT     1

@@ -6,6 +6,7 @@
 // #include "Dhcp.h"
 
 #include <lwip/ip4_addr.h>
+#include <lwip/dns.h>
 
 enum EthernetLinkStatus { 
     Unknown, 
@@ -39,7 +40,9 @@ class CH32Ethernet {
     IPAddress gatewayIP() {
         return IPAddress(ip4_addr_get_u32(&(get_netif()->gw)));
     }
-    IPAddress dnsServerIP(); // TODO
+    IPAddress dnsServerIP() {
+        return IPAddress(ip4_addr_get_u32(dns_getserver(0)));
+    }
 
 
     static void ledCallback(uint8_t ledId, uint8_t state);

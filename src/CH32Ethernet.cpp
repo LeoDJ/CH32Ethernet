@@ -36,7 +36,11 @@ void CH32Ethernet::begin(IPAddress local_ip, IPAddress subnet, IPAddress gateway
         dns_server = IPAddress(gateway);
         dns = dns_server;
     }
-    ch32_eth_init(nullptr, (uint8_t*)&ip, (uint8_t*)&gw, (uint8_t*)&dns);
+    ip4_addr_t dnsIp;
+    ip4_addr_set_u32(&dnsIp, dns);
+    ch32_eth_init(nullptr, (uint8_t*)&ip, (uint8_t*)&gw, (uint8_t*)&net);
+    dns_setserver(0, &dnsIp);
+    maintain();
 }
 
 int CH32Ethernet::maintain() {
