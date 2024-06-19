@@ -3,7 +3,7 @@
 #include "Dns.h"
 #include <lwip/tcpip.h>
 
-const uint16_t FREE_BUFFER_THRESHHOLD = (PBUF_POOL_SIZE - 6) * PBUF_POOL_BUFSIZE;
+const uint16_t FREE_BUFFER_THRESHHOLD = (PBUF_POOL_SIZE / 2) * PBUF_POOL_BUFSIZE;
 
 err_t EthernetClient::tcpReceive(void* arg, struct tcp_pcb* tpcb, struct pbuf* p, err_t err) {
     EthernetClient* client = reinterpret_cast<EthernetClient*>(arg);
@@ -136,10 +136,9 @@ int EthernetClient::read(uint8_t* buf, size_t size) {
     if (!_pcb || !_rxBuffer) {
         return 0;
     }
-    if (pbuf_get_contiguous(_rxBuffer, buf, size, size, 0) == NULL) {
-        printf("[ETH_c] Error: couldn't get pbuf\n");
-    }
-    _rxBuffer = pbuf_free_header(_rxBuffer, size);
+
+    size_t len = pbuf_copy_partial(_rxBuffer, buf, size, 0);
+    _rxBuffer = pbuf_free_header(_rxBuffer, len);
 
     // only acknowledge TCP reception, when data was _actually_ handled, if the buffer is close to full
     // (otherwise we overflow in ch32_eth_loop, because there's no signal traversing back through lwip to netif.input, when buffer full, apparently)
@@ -153,7 +152,7 @@ int EthernetClient::read(uint8_t* buf, size_t size) {
         _rxBuffer = nullptr;
     }
 
-    return size;
+    return len;
 }
 
 int EthernetClient::peek() {
