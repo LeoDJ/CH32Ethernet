@@ -1,6 +1,6 @@
 #include "CH32Ethernet.h"
 
-int CH32Ethernet::begin(uint32_t timeout, uint32_t responseTimeout, bool blocking) {
+int CH32Ethernet::begin(uint8_t *mac_address, uint32_t timeout, uint32_t responseTimeout, bool blocking) {
     // static DhcpClass s_dhcp;
     // _dhcp = &s_dhcp;
     ch32_eth_init();
@@ -18,7 +18,7 @@ int CH32Ethernet::begin(uint32_t timeout, uint32_t responseTimeout, bool blockin
     return 2;
 }
 
-void CH32Ethernet::begin(IPAddress local_ip, IPAddress subnet, IPAddress gateway, IPAddress dns_server) {
+void CH32Ethernet::begin(uint8_t *mac_address, IPAddress local_ip, IPAddress subnet, IPAddress gateway, IPAddress dns_server) {
     uint32_t ip = local_ip;
     uint32_t net = subnet;
     uint32_t gw = gateway;
@@ -36,11 +36,16 @@ void CH32Ethernet::begin(IPAddress local_ip, IPAddress subnet, IPAddress gateway
         dns_server = IPAddress(gateway);
         dns = dns_server;
     }
-    ip4_addr_t dnsIp;
-    ip4_addr_set_u32(&dnsIp, dns);
-    ch32_eth_init(nullptr, (uint8_t*)&ip, (uint8_t*)&gw, (uint8_t*)&net);
-    dns_setserver(0, &dnsIp);
+    ch32_eth_init(mac_address, (uint8_t*)&ip, (uint8_t*)&gw, (uint8_t*)&net);
+    setDnsServerIP(dns_server);
     maintain();
+}
+
+void CH32Ethernet::begin(IPAddress local_ip, IPAddress subnet, IPAddress gateway, IPAddress dns_server) {
+    begin(nullptr, local_ip, subnet, gateway, dns_server);
+}
+int CH32Ethernet::begin(uint32_t timeout, uint32_t responseTimeout, bool blocking) {
+    begin(nullptr, timeout, responseTimeout, blocking);
 }
 
 int CH32Ethernet::maintain() {
@@ -72,6 +77,12 @@ void CH32Ethernet::ledCallback(uint8_t ledId, uint8_t state) {
         case ETH_LED_LINK:  digitalWrite(getInstance()->_pinLedLink, pinState);    break;
         case ETH_LED_ACT:   digitalWrite(getInstance()->_pinLedAct, pinState);     break;
     }
+}
+
+void CH32Ethernet::setDnsServerIP(const IPAddress dns_server) {
+    ip4_addr_t dnsIp;
+    ip4_addr_set_u32(&dnsIp, dns_server);
+    dns_setserver(0, &dnsIp);
 }
 
 

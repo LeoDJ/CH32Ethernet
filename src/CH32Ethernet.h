@@ -14,20 +14,32 @@ enum EthernetLinkStatus {
     LinkOFF 
 };
 
+enum EthernetHardwareStatus {
+	EthernetNoHardware,
+	EthernetW5100,
+	EthernetW5200,
+	EthernetW5500,
+    EthernetBuiltinPHY
+};
+
 class CH32Ethernet {
   public:
     // DHCP
     // Returns 0 if the DHCP configuration failed, and 1 if it succeeded, and 2 if running non-blockingly
+    // Automatically uses internal
     int begin(uint32_t timeout = 60000, uint32_t responseTimeout = 4000, bool blocking = true);
+    int begin(uint8_t *mac_address, unsigned long timeout = 60000, unsigned long responseTimeout = 4000, bool blocking = true);
 
     // Static IP
     void begin(IPAddress local_ip, IPAddress subnet = nullptr, IPAddress gateway = nullptr, IPAddress dns_server = nullptr);
+    void begin(uint8_t *mac_address, IPAddress local_ip, IPAddress subnet = nullptr, IPAddress gateway = nullptr, IPAddress dns_server = nullptr);
 
     void setLedPins(uint32_t linkPin, uint32_t actPin, bool activeLow = false);
 
     // Has to be called often in main loop to ensure correct ethernet processing
     int maintain();
 
+    // Getters
     EthernetLinkStatus linkStatus() {
         return netif_is_link_up(get_netif()) ? LinkON : LinkOFF;
     }
@@ -43,7 +55,24 @@ class CH32Ethernet {
     IPAddress dnsServerIP() {
         return IPAddress(ip4_addr_get_u32(dns_getserver(0)));
     }
+    void MACAddress(uint8_t *mac_address) { 
+        memcpy(mac_address, get_netif()->hwaddr, 6); 
+    }
 
+    // Setters
+	void setDnsServerIP(const IPAddress dns_server);
+
+    // Dummy functions, needed for backwards-compatibility to normal Arduino Ethernet library
+    static EthernetHardwareStatus hardwareStatus() {    
+        return EthernetBuiltinPHY;  // PHY is always connected
+    }   
+    static void init(uint8_t sspin) {}    
+    void setMACAddress(const uint8_t *mac_address) {}
+	void setLocalIP(const IPAddress local_ip) {}
+	void setSubnetMask(const IPAddress subnet) {}
+	void setGatewayIP(const IPAddress gateway) {}
+	void setRetransmissionTimeout(uint16_t milliseconds) {}
+	void setRetransmissionCount(uint8_t num) {}
 
     static void ledCallback(uint8_t ledId, uint8_t state);
 
