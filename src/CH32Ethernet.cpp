@@ -45,7 +45,7 @@ void CH32Ethernet::begin(IPAddress local_ip, IPAddress subnet, IPAddress gateway
     begin(nullptr, local_ip, subnet, gateway, dns_server);
 }
 int CH32Ethernet::begin(uint32_t timeout, uint32_t responseTimeout, bool blocking) {
-    begin(nullptr, timeout, responseTimeout, blocking);
+    return begin(nullptr, timeout, responseTimeout, blocking);
 }
 
 int CH32Ethernet::maintain() {

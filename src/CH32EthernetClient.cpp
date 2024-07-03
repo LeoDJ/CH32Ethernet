@@ -112,12 +112,27 @@ size_t EthernetClient::write(const uint8_t* buf, size_t size) {
     if (!_pcb) {
         return 0;
     }
-    err_t err = tcp_write(_pcb, buf, size, TCP_WRITE_FLAG_COPY);
-    if (err == ERR_OK) {
-        tcp_output(_pcb);
-        return size;
-    }
-    return 0;
+
+    size_t sizeToSend, remainingSize = size;
+    err_t err;
+    do {
+        sizeToSend = min((uint16_t)remainingSize, _pcb->mss);
+        err = tcp_write(_pcb, buf, sizeToSend, TCP_WRITE_FLAG_COPY);
+        if (err == ERR_OK) {
+            err = tcp_output(_pcb);
+            if (err != ERR_OK) {
+                return 0;
+            }
+            remainingSize -= sizeToSend;
+            buf += sizeToSend;
+        }
+        // Block while not enough space in TCP send buffer
+        while(_pcb->snd_buf < _pcb->mss) {
+            Ethernet.maintain();
+        }
+    } while (err == ERR_OK && remainingSize);
+
+    return (err == ERR_OK && !remainingSize) ? size : 0;
 }
 
 int EthernetClient::available() {
